@@ -1,5 +1,6 @@
 package JDK8;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -56,10 +57,15 @@ import java.util.function.Consumer;
  * @since 1.2
  * @param <E> the type of elements held in this collection
  */
-
+/*
+AbstractSequentialList 只支持按次序访问
+需要实现的方法：
+size()
+listIterator()，返回一个 ListIterator
+ */
 public class LinkedList<E>
         extends AbstractSequentialList<E>
-        implements List<E>, Deque<E>, Cloneable, java.io.Serializable
+        implements List<E>, Deque<E>, Cloneable, Serializable
 {
     transient int size = 0;
 
@@ -68,14 +74,14 @@ public class LinkedList<E>
      * Invariant: (first == null && last == null) ||
      *            (first.prev == null && first.item != null)
      */
-    transient java.util.LinkedList.Node<E> first;
+    transient Node<E> first;
 
     /**
      * Pointer to last node.
      * Invariant: (first == null && last == null) ||
      *            (last.next == null && last.item != null)
      */
-    transient java.util.LinkedList.Node<E> last;
+    transient Node<E> last;
 
     /**
      * Constructs an empty list.
@@ -100,8 +106,8 @@ public class LinkedList<E>
      * Links e as first element.
      */
     private void linkFirst(E e) {
-        final java.util.LinkedList.Node<E> f = first;
-        final java.util.LinkedList.Node<E> newNode = new java.util.LinkedList.Node<>(null, e, f);
+        final Node<E> f = first;
+        final Node<E> newNode = new Node<>(null, e, f);
         first = newNode;
         if (f == null)
             last = newNode;
@@ -115,8 +121,8 @@ public class LinkedList<E>
      * Links e as last element.
      */
     void linkLast(E e) {
-        final java.util.LinkedList.Node<E> l = last;
-        final java.util.LinkedList.Node<E> newNode = new java.util.LinkedList.Node<>(l, e, null);
+        final Node<E> l = last;
+        final Node<E> newNode = new Node<>(l, e, null);
         last = newNode;
         if (l == null)
             first = newNode;
@@ -129,10 +135,10 @@ public class LinkedList<E>
     /**
      * Inserts element e before non-null Node succ.
      */
-    void linkBefore(E e, java.util.LinkedList.Node<E> succ) {
+    void linkBefore(E e, Node<E> succ) {
         // assert succ != null;
-        final java.util.LinkedList.Node<E> pred = succ.prev;
-        final java.util.LinkedList.Node<E> newNode = new java.util.LinkedList.Node<>(pred, e, succ);
+        final Node<E> pred = succ.prev;
+        final Node<E> newNode = new Node<>(pred, e, succ);
         succ.prev = newNode;
         if (pred == null)
             first = newNode;
@@ -145,10 +151,10 @@ public class LinkedList<E>
     /**
      * Unlinks non-null first node f.
      */
-    private E unlinkFirst(java.util.LinkedList.Node<E> f) {
+    private E unlinkFirst(Node<E> f) {
         // assert f == first && f != null;
         final E element = f.item;
-        final java.util.LinkedList.Node<E> next = f.next;
+        final Node<E> next = f.next;
         f.item = null;
         f.next = null; // help GC
         first = next;
@@ -164,10 +170,10 @@ public class LinkedList<E>
     /**
      * Unlinks non-null last node l.
      */
-    private E unlinkLast(java.util.LinkedList.Node<E> l) {
+    private E unlinkLast(Node<E> l) {
         // assert l == last && l != null;
         final E element = l.item;
-        final java.util.LinkedList.Node<E> prev = l.prev;
+        final Node<E> prev = l.prev;
         l.item = null;
         l.prev = null; // help GC
         last = prev;
@@ -183,11 +189,11 @@ public class LinkedList<E>
     /**
      * Unlinks non-null node x.
      */
-    E unlink(java.util.LinkedList.Node<E> x) {
+    E unlink(Node<E> x) {
         // assert x != null;
         final E element = x.item;
-        final java.util.LinkedList.Node<E> next = x.next;
-        final java.util.LinkedList.Node<E> prev = x.prev;
+        final Node<E> next = x.next;
+        final Node<E> prev = x.prev;
 
         if (prev == null) {
             first = next;
@@ -216,7 +222,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      */
     public E getFirst() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         if (f == null)
             throw new NoSuchElementException();
         return f.item;
@@ -229,7 +235,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      */
     public E getLast() {
-        final java.util.LinkedList.Node<E> l = last;
+        final Node<E> l = last;
         if (l == null)
             throw new NoSuchElementException();
         return l.item;
@@ -242,7 +248,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      */
     public E removeFirst() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         if (f == null)
             throw new NoSuchElementException();
         return unlinkFirst(f);
@@ -255,7 +261,7 @@ public class LinkedList<E>
      * @throws NoSuchElementException if this list is empty
      */
     public E removeLast() {
-        final java.util.LinkedList.Node<E> l = last;
+        final Node<E> l = last;
         if (l == null)
             throw new NoSuchElementException();
         return unlinkLast(l);
@@ -331,14 +337,14 @@ public class LinkedList<E>
      */
     public boolean remove(Object o) {
         if (o == null) {
-            for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next) {
+            for (Node<E> x = first; x != null; x = x.next) {
                 if (x.item == null) {
                     unlink(x);
                     return true;
                 }
             }
         } else {
-            for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next) {
+            for (Node<E> x = first; x != null; x = x.next) {
                 if (o.equals(x.item)) {
                     unlink(x);
                     return true;
@@ -387,7 +393,7 @@ public class LinkedList<E>
         if (numNew == 0)
             return false;
 
-        java.util.LinkedList.Node<E> pred, succ;
+        Node<E> pred, succ;
         if (index == size) {
             succ = null;
             pred = last;
@@ -398,7 +404,7 @@ public class LinkedList<E>
 
         for (Object o : a) {
             @SuppressWarnings("unchecked") E e = (E) o;
-            java.util.LinkedList.Node<E> newNode = new java.util.LinkedList.Node<>(pred, e, null);
+            Node<E> newNode = new Node<>(pred, e, null);
             if (pred == null)
                 first = newNode;
             else
@@ -427,8 +433,8 @@ public class LinkedList<E>
         // - helps a generational GC if the discarded nodes inhabit
         //   more than one generation
         // - is sure to free memory even if there is a reachable Iterator
-        for (java.util.LinkedList.Node<E> x = first; x != null; ) {
-            java.util.LinkedList.Node<E> next = x.next;
+        for (Node<E> x = first; x != null; ) {
+            Node<E> next = x.next;
             x.item = null;
             x.next = null;
             x.prev = null;
@@ -465,7 +471,7 @@ public class LinkedList<E>
      */
     public E set(int index, E element) {
         checkElementIndex(index);
-        java.util.LinkedList.Node<E> x = node(index);
+        Node<E> x = node(index);
         E oldVal = x.item;
         x.item = element;
         return oldVal;
@@ -540,16 +546,16 @@ public class LinkedList<E>
     /**
      * Returns the (non-null) Node at the specified element index.
      */
-    java.util.LinkedList.Node<E> node(int index) {
+    Node<E> node(int index) {
         // assert isElementIndex(index);
 
         if (index < (size >> 1)) {
-            java.util.LinkedList.Node<E> x = first;
+            Node<E> x = first;
             for (int i = 0; i < index; i++)
                 x = x.next;
             return x;
         } else {
-            java.util.LinkedList.Node<E> x = last;
+            Node<E> x = last;
             for (int i = size - 1; i > index; i--)
                 x = x.prev;
             return x;
@@ -572,13 +578,13 @@ public class LinkedList<E>
     public int indexOf(Object o) {
         int index = 0;
         if (o == null) {
-            for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next) {
+            for (Node<E> x = first; x != null; x = x.next) {
                 if (x.item == null)
                     return index;
                 index++;
             }
         } else {
-            for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next) {
+            for (Node<E> x = first; x != null; x = x.next) {
                 if (o.equals(x.item))
                     return index;
                 index++;
@@ -601,13 +607,13 @@ public class LinkedList<E>
     public int lastIndexOf(Object o) {
         int index = size;
         if (o == null) {
-            for (java.util.LinkedList.Node<E> x = last; x != null; x = x.prev) {
+            for (Node<E> x = last; x != null; x = x.prev) {
                 index--;
                 if (x.item == null)
                     return index;
             }
         } else {
-            for (java.util.LinkedList.Node<E> x = last; x != null; x = x.prev) {
+            for (Node<E> x = last; x != null; x = x.prev) {
                 index--;
                 if (o.equals(x.item))
                     return index;
@@ -625,7 +631,7 @@ public class LinkedList<E>
      * @since 1.5
      */
     public E peek() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         return (f == null) ? null : f.item;
     }
 
@@ -647,7 +653,7 @@ public class LinkedList<E>
      * @since 1.5
      */
     public E poll() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         return (f == null) ? null : unlinkFirst(f);
     }
 
@@ -707,7 +713,7 @@ public class LinkedList<E>
      * @since 1.6
      */
     public E peekFirst() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         return (f == null) ? null : f.item;
     }
 
@@ -720,7 +726,7 @@ public class LinkedList<E>
      * @since 1.6
      */
     public E peekLast() {
-        final java.util.LinkedList.Node<E> l = last;
+        final Node<E> l = last;
         return (l == null) ? null : l.item;
     }
 
@@ -733,7 +739,7 @@ public class LinkedList<E>
      * @since 1.6
      */
     public E pollFirst() {
-        final java.util.LinkedList.Node<E> f = first;
+        final Node<E> f = first;
         return (f == null) ? null : unlinkFirst(f);
     }
 
@@ -746,7 +752,7 @@ public class LinkedList<E>
      * @since 1.6
      */
     public E pollLast() {
-        final java.util.LinkedList.Node<E> l = last;
+        final Node<E> l = last;
         return (l == null) ? null : unlinkLast(l);
     }
 
@@ -802,14 +808,14 @@ public class LinkedList<E>
      */
     public boolean removeLastOccurrence(Object o) {
         if (o == null) {
-            for (java.util.LinkedList.Node<E> x = last; x != null; x = x.prev) {
+            for (Node<E> x = last; x != null; x = x.prev) {
                 if (x.item == null) {
                     unlink(x);
                     return true;
                 }
             }
         } else {
-            for (java.util.LinkedList.Node<E> x = last; x != null; x = x.prev) {
+            for (Node<E> x = last; x != null; x = x.prev) {
                 if (o.equals(x.item)) {
                     unlink(x);
                     return true;
@@ -842,12 +848,12 @@ public class LinkedList<E>
      */
     public ListIterator<E> listIterator(int index) {
         checkPositionIndex(index);
-        return new java.util.LinkedList.ListItr(index);
+        return new ListItr(index);
     }
 
     private class ListItr implements ListIterator<E> {
-        private java.util.LinkedList.Node<E> lastReturned;
-        private java.util.LinkedList.Node<E> next;
+        private Node<E> lastReturned;
+        private Node<E> next;
         private int nextIndex;
         private int expectedModCount = modCount;
 
@@ -899,7 +905,7 @@ public class LinkedList<E>
             if (lastReturned == null)
                 throw new IllegalStateException();
 
-            java.util.LinkedList.Node<E> lastNext = lastReturned.next;
+            Node<E> lastNext = lastReturned.next;
             unlink(lastReturned);
             if (next == lastReturned)
                 next = lastNext;
@@ -946,10 +952,10 @@ public class LinkedList<E>
 
     private static class Node<E> {
         E item;
-        java.util.LinkedList.Node<E> next;
-        java.util.LinkedList.Node<E> prev;
+        Node<E> next;
+        Node<E> prev;
 
-        Node(java.util.LinkedList.Node<E> prev, E element, java.util.LinkedList.Node<E> next) {
+        Node(Node<E> prev, E element, Node<E> next) {
             this.item = element;
             this.next = next;
             this.prev = prev;
@@ -1003,7 +1009,7 @@ public class LinkedList<E>
         clone.modCount = 0;
 
         // Initialize clone with our elements
-        for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next)
+        for (Node<E> x = first; x != null; x = x.next)
             clone.add(x.item);
 
         return clone;
@@ -1026,7 +1032,7 @@ public class LinkedList<E>
     public Object[] toArray() {
         Object[] result = new Object[size];
         int i = 0;
-        for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next)
+        for (Node<E> x = first; x != null; x = x.next)
             result[i++] = x.item;
         return result;
     }
@@ -1076,7 +1082,7 @@ public class LinkedList<E>
                     a.getClass().getComponentType(), size);
         int i = 0;
         Object[] result = a;
-        for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next)
+        for (Node<E> x = first; x != null; x = x.next)
             result[i++] = x.item;
 
         if (a.length > size)
@@ -1104,7 +1110,7 @@ public class LinkedList<E>
         s.writeInt(size);
 
         // Write out all elements in the proper order.
-        for (java.util.LinkedList.Node<E> x = first; x != null; x = x.next)
+        for (Node<E> x = first; x != null; x = x.next)
             s.writeObject(x.item);
     }
 
@@ -1152,7 +1158,7 @@ public class LinkedList<E>
         static final int BATCH_UNIT = 1 << 10;  // batch array size increment
         static final int MAX_BATCH = 1 << 25;  // max batch array size;
         final java.util.LinkedList<E> list; // null OK unless traversed
-        java.util.LinkedList.Node<E> current;      // current node; null until initialized
+        Node<E> current;      // current node; null until initialized
         int est;              // size estimate; -1 until first needed
         int expectedModCount; // initialized when est set
         int batch;            // batch size for splits
@@ -1181,7 +1187,7 @@ public class LinkedList<E>
         public long estimateSize() { return (long) getEst(); }
 
         public Spliterator<E> trySplit() {
-            java.util.LinkedList.Node<E> p;
+            Node<E> p;
             int s = getEst();
             if (s > 1 && (p = current) != null) {
                 int n = batch + BATCH_UNIT;
@@ -1201,7 +1207,7 @@ public class LinkedList<E>
         }
 
         public void forEachRemaining(Consumer<? super E> action) {
-            java.util.LinkedList.Node<E> p; int n;
+            Node<E> p; int n;
             if (action == null) throw new NullPointerException();
             if ((n = getEst()) > 0 && (p = current) != null) {
                 current = null;
@@ -1217,7 +1223,7 @@ public class LinkedList<E>
         }
 
         public boolean tryAdvance(Consumer<? super E> action) {
-            java.util.LinkedList.Node<E> p;
+            Node<E> p;
             if (action == null) throw new NullPointerException();
             if (getEst() > 0 && (p = current) != null) {
                 --est;

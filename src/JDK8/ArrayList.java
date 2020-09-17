@@ -79,8 +79,18 @@ import sun.misc.SharedSecrets;
  * @since   1.2
  */
 
+/*
+add均摊花费为O(1)
+
+接口中全都是抽象的方法，而抽象类中可以有抽象方法，还可以有具体的实现方法，正是利用了这一点，
+让AbstractList是实现接口中一些通用的方法，而具体的类，如ArrayList就继承这个AbstractList类，
+拿到一些通用的方法，然后自己在实现一些自己特有的方法，这样一来，让代码更简洁，就继承结构最底层的类中通用的方法都抽取出来
+
+RandomAccess 是一个标志接口，表明实现这个这个接口的 List 集合是支持快速随机访问的。
+如果是实现了这个接口的 List，那么使用for循环的方式获取数据会优于用迭代器获取数据。
+ */
 public class ArrayList<E> extends AbstractList<E>
-        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+        implements List<E>, RandomAccess, Cloneable, Serializable
 {
     private static final long serialVersionUID = 8683452581122892189L;
 
@@ -150,12 +160,12 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws NullPointerException if the specified collection is null
      */
     public ArrayList(Collection<? extends E> c) {
-        Object[] a = c.toArray();
+        Object[] a = c.toArray();//浅拷贝
         if ((size = a.length) != 0) {
             if (c.getClass() == ArrayList.class) {
                 elementData = a;
             } else {
-                elementData = Arrays.copyOf(a, size, Object[].class);
+                elementData = Arrays.copyOf(a, size, Object[].class);//深拷贝
             }
         } else {
             // replace with empty array.
@@ -170,6 +180,7 @@ public class ArrayList<E> extends AbstractList<E>
      */
     public void trimToSize() {
         modCount++;
+        //来截取elementData数组,缩小空间,即elementData后面可能为null值,就截取到了size的位置
         if (size < elementData.length) {
             elementData = (size == 0)
                     ? EMPTY_ELEMENTDATA
@@ -184,7 +195,10 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @param   minCapacity   the desired minimum capacity
      */
+    //最好在 add 大量元素之前用 ensureCapacity 方法，以减少增量重新分配的次数
+    // 扩容的函数.但是在扩容前会检查是否合法
     public void ensureCapacity(int minCapacity) {
+        //确保它至少可以容纳由minimum capacity参数指定的元素数
         int minExpand = (elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
                 // any size if not default element table
                 ? 0
@@ -204,14 +218,17 @@ public class ArrayList<E> extends AbstractList<E>
         return minCapacity;
     }
 
+
     private void ensureCapacityInternal(int minCapacity) {
         ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
     }
 
+    //也是为了确保elemenData数组有合适的大小
     private void ensureExplicitCapacity(int minCapacity) {
         modCount++;
 
         // overflow-conscious code
+        //当数组满的时候才扩容
         if (minCapacity - elementData.length > 0)
             grow(minCapacity);
     }
@@ -233,13 +250,13 @@ public class ArrayList<E> extends AbstractList<E>
     private void grow(int minCapacity) {
         // overflow-conscious code
         int oldCapacity = elementData.length;
-        int newCapacity = oldCapacity + (oldCapacity >> 1);
-        if (newCapacity - minCapacity < 0)
+        int newCapacity = oldCapacity + (oldCapacity >> 1);//1.5倍
+        if (newCapacity - minCapacity < 0)//说明比想扩容的大小还小
             newCapacity = minCapacity;
         if (newCapacity - MAX_ARRAY_SIZE > 0)
             newCapacity = hugeCapacity(minCapacity);
         // minCapacity is usually close to size, so this is a win:
-        elementData = Arrays.copyOf(elementData, newCapacity);
+        elementData = Arrays.copyOf(elementData, newCapacity);//扩容操作
     }
 
     private static int hugeCapacity(int minCapacity) {
@@ -308,6 +325,7 @@ public class ArrayList<E> extends AbstractList<E>
      * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>,
      * or -1 if there is no such index.
      */
+    //从后向前找
     public int lastIndexOf(Object o) {
         if (o == null) {
             for (int i = size-1; i >= 0; i--)
@@ -330,7 +348,7 @@ public class ArrayList<E> extends AbstractList<E>
     public Object clone() {
         try {
             ArrayList<?> v = (ArrayList<?>) super.clone();
-            v.elementData = Arrays.copyOf(elementData, size);
+            v.elementData = Arrays.copyOf(elementData, size);//深拷贝
             v.modCount = 0;
             return v;
         } catch (CloneNotSupportedException e) {
@@ -435,8 +453,10 @@ public class ArrayList<E> extends AbstractList<E>
      * @param e element to be appended to this list
      * @return <tt>true</tt> (as specified by {@link Collection#add})
      */
+    //如果是new ArrayList(),那么第一次add(),ensureCapacityInternal方法里面就会自动初始化容量为10
     public boolean add(E e) {
         ensureCapacityInternal(size + 1);  // Increments modCount!!
+        //如果不够,则要扩容 modCount也会增加
         elementData[size++] = e;
         return true;
     }
@@ -451,9 +471,10 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     public void add(int index, E element) {
-        rangeCheckForAdd(index);
+        rangeCheckForAdd(index);//查看是否越界
 
         ensureCapacityInternal(size + 1);  // Increments modCount!!
+        //源数组,源数组中起始copy的position,目标数组,目标数组的位置,复制的长度
         System.arraycopy(elementData, index, elementData, index + 1,
                 size - index);
         elementData[index] = element;
@@ -469,6 +490,7 @@ public class ArrayList<E> extends AbstractList<E>
      * @return the element that was removed from the list
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
+    //把目标之后的数组元素复制到删除那块
     public E remove(int index) {
         rangeCheck(index);
 
@@ -518,6 +540,7 @@ public class ArrayList<E> extends AbstractList<E>
      * Private remove method that skips bounds checking and does not
      * return the value removed.
      */
+    //不检查,不返回
     private void fastRemove(int index) {
         modCount++;
         int numMoved = size - index - 1;
@@ -692,17 +715,20 @@ public class ArrayList<E> extends AbstractList<E>
         return batchRemove(c, true);
     }
 
+    //complement标识了要放入集合中存在/不存在的元素
     private boolean batchRemove(Collection<?> c, boolean complement) {
         final Object[] elementData = this.elementData;
         int r = 0, w = 0;
         boolean modified = false;
         try {
+            //将元素都放在集合的前部
             for (; r < size; r++)
                 if (c.contains(elementData[r]) == complement)
                     elementData[w++] = elementData[r];
         } finally {
             // Preserve behavioral compatibility with AbstractCollection,
             // even if c.contains() throws.
+            //抛出异常则把r后面这部分都放入其中
             if (r != size) {
                 System.arraycopy(elementData, r,
                         elementData, w,
@@ -729,8 +755,8 @@ public class ArrayList<E> extends AbstractList<E>
      *             instance is emitted (int), followed by all of its elements
      *             (each an <tt>Object</tt>) in the proper order.
      */
-    private void writeObject(java.io.ObjectOutputStream s)
-            throws java.io.IOException{
+    private void writeObject(ObjectOutputStream s)
+            throws IOException{
         // Write out element count, and any hidden stuff
         int expectedModCount = modCount;
         s.defaultWriteObject();
@@ -752,8 +778,8 @@ public class ArrayList<E> extends AbstractList<E>
      * Reconstitute the <tt>ArrayList</tt> instance from a stream (that is,
      * deserialize it).
      */
-    private void readObject(java.io.ObjectInputStream s)
-            throws java.io.IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream s)
+            throws IOException, ClassNotFoundException {
         elementData = EMPTY_ELEMENTDATA;
 
         // Read in size, and any hidden stuff
