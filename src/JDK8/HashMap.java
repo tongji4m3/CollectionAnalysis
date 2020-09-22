@@ -13,6 +13,13 @@ import java.util.function.Function;
 
 import sun.misc.SharedSecrets;
 
+
+/**
+ * 优秀博客地址:
+ https://blog.csdn.net/v123411739/article/details/78996181?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-2.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromBaidu-2.channel_param#%E5%89%8D%E8%A8%80
+ * @param <K>
+ * @param <V>
+ */
 public class HashMap<K, V> extends AbstractMap<K, V>
         implements Map<K, V>, Cloneable, Serializable
 {
@@ -126,7 +133,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
      */
-    //让高位也参与
+    //为了在 table 的 length 较小的时候,让高位也参与
     static final int hash(Object key)
     {
         int h;
@@ -503,7 +510,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
             if (p.hash == hash &&
                     ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
-            //调用红黑树的put方法
+                //调用红黑树的put方法
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K, V>) p).putTreeVal(this, tab, hash, key, value);
             else
@@ -737,7 +744,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
      * @return the node, or null if none
      */
     final Node<K, V> removeNode(int hash, Object key, Object value,
-                                                  boolean matchValue, boolean movable)
+                                boolean matchValue, boolean movable)
     {
         Node<K, V>[] tab;
         Node<K, V> p;
@@ -1973,12 +1980,13 @@ public class HashMap<K, V> extends AbstractMap<K, V>
 
     /* ------------------------------------------------------------ */
     // Tree bins
-    // TODO: 2020/9/14  
+
     /**
      * Entry for Tree bins. Extends LinkedHashMap.Entry (which in turn
      * extends Node) so can be used as extension of either regular or
      * linked node.
      */
+    //它继承自 LinkedHashMap.Entry ，而 LinkedHashMap.Entry 继承自 HashMap.Node ，因此还有额外的 6 个属性：
     static final class TreeNode<K, V> extends LinkedHashMap.Entry<K, V>
     {
         TreeNode<K, V> parent;  // red-black tree links
@@ -2008,18 +2016,24 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         /**
          * Ensures that the given root is the first node of its bin.
          */
+        //确保给定的根是其容器的第一个节点。
         static <K, V> void moveRootToFront(Node<K, V>[] tab, TreeNode<K, V> root)
         {
             int n;
+            //1,红黑树根节点不能为空，table数组不能为空
             if (root != null && tab != null && (n = tab.length) > 0)
             {
+                //2,获取红黑树根节点的应该放入的下标位置
                 int index = (n - 1) & root.hash;
                 TreeNode<K, V> first = (TreeNode<K, V>) tab[index];
+                //3,如果当前的下标位置放得对象与需要验证的对象，不是同一个对象
                 if (root != first)
                 {
                     Node<K, V> rn;
+                    //3.1,设置红黑树根节点的值为改下标位置的值
                     tab[index] = root;
                     TreeNode<K, V> rp = root.prev;
+                    //3.2,重置红黑树根节点的上下级关系，主要是调整root,root.prev,root.next,first;四者的关系
                     if ((rn = root.next) != null)
                         ((TreeNode<K, V>) rn).prev = rp;
                     if (rp != null)
@@ -2038,30 +2052,43 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          * The kc argument caches comparableClassFor(key) upon first use
          * comparing keys.
          */
+
+        /**
+         * 从调用此方法的节点开始查找, 通过hash值和key找到对应的节点
+         * 此方法是红黑树节点的查找, 红黑树是特殊的自平衡二叉查找树
+         * 平衡二叉查找树的特点：左节点<根节点<右节点
+         */
         final TreeNode<K, V> find(int h, Object k, Class<?> kc)
         {
+            // 1.将p节点赋值为调用此方法的节点，即为红黑树根节点
             TreeNode<K, V> p = this;
+
+            // 2.从p节点开始向下遍历
             do
             {
                 int ph, dir;
                 K pk;
                 TreeNode<K, V> pl = p.left, pr = p.right, q;
+                // 3.如果传入的hash值小于p节点的hash值，则往p节点的左边遍历
                 if ((ph = p.hash) > h)
                     p = pl;
                 else if (ph < h)
                     p = pr;
-                else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                else if ((pk = p.key) == k || (k != null && k.equals(pk)))// 5.如果传入的hash值和key值等于p节点的hash值和key值,则p节点为目标节点,返回p节点
                     return p;
-                else if (pl == null)
+                else if (pl == null) // 6.p节点的左节点为空则将向右遍历
                     p = pr;
                 else if (pr == null)
                     p = pl;
+                // 8.将p节点与k进行比较
                 else if ((kc != null ||
-                        (kc = comparableClassFor(k)) != null) &&
-                        (dir = compareComparables(kc, k, pk)) != 0)
+                        (kc = comparableClassFor(k)) != null) &&// 8.1 kc不为空代表k实现了Comparable
+                        (dir = compareComparables(kc, k, pk)) != 0)// 8.2 k<pk则dir<0, k>pk则dir>0
                     p = (dir < 0) ? pl : pr;
+                    // 9.代码走到此处, 代表key所属类没有实现Comparable, 直接指定向p的右边遍历
                 else if ((q = pr.find(h, k, kc)) != null)
                     return q;
+                    // 10.代码走到此处代表“pr.find(h, k, kc)”为空, 因此直接向左遍历
                 else
                     p = pl;
             } while (p != null);
@@ -2073,6 +2100,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          */
         final TreeNode<K, V> getTreeNode(int h, Object k)
         {
+            // 1.首先找到红黑树的根节点；2.使用根节点调用find方法
             return ((parent != null) ? root() : this).find(h, k, null);
         }
 
@@ -2083,6 +2111,9 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          * equivalence across rebalancings. Tie-breaking further than
          * necessary simplifies testing a bit.
          */
+
+        // 用于不可比较或者hashCode相同时进行比较的方法, 只是一个一致的插入规则，用来维护重定位的等价性。
+        //定义一套规则用于极端情况下比较两个参数的大小。
         static int tieBreakOrder(Object a, Object b)
         {
             int d;
@@ -2097,13 +2128,15 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         /**
          * Forms tree of the nodes linked from this node.
          */
+        //构建红黑树
         final void treeify(Node<K, V>[] tab)
         {
             TreeNode<K, V> root = null;
+            // 1.将调用此方法的节点赋值给x，以x作为起点，开始进行遍历
             for (TreeNode<K, V> x = this, next; x != null; x = next)
             {
-                next = (TreeNode<K, V>) x.next;
-                x.left = x.right = null;
+                next = (TreeNode<K, V>) x.next; // next赋值为x的下个节点
+                x.left = x.right = null; // 将x的左右节点设置为空
                 if (root == null)
                 {
                     x.parent = null;
@@ -2115,20 +2148,24 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                     K k = x.key;
                     int h = x.hash;
                     Class<?> kc = null;
+                    // 3.如果当前节点x不是根节点, 则从根节点开始查找属于该节点的位置
                     for (TreeNode<K, V> p = root; ; )
                     {
                         int dir, ph;
                         K pk = p.key;
+                        // 4.如果x节点的hash值小于p节点的hash值，则将dir赋值为-1, 代表向p的左边查找
                         if ((ph = p.hash) > h)
                             dir = -1;
                         else if (ph < h)
                             dir = 1;
-                        else if ((kc == null &&
+                            // 6.走到这代表x的hash值和p的hash值相等，则比较key值
+                        else if ((kc == null &&// 6.1 如果k没有实现Comparable接口 或者 x节点的key和p节点的key相等
                                 (kc = comparableClassFor(k)) == null) ||
                                 (dir = compareComparables(kc, k, pk)) == 0)
-                            dir = tieBreakOrder(k, pk);
+                            dir = tieBreakOrder(k, pk); // 6.2 使用定义的一套规则来比较x节点和p节点的大小，用来决定向左还是向右查找
 
-                        TreeNode<K, V> xp = p;
+                        TreeNode<K, V> xp = p;// xp赋值为x的父节点,中间变量用于下面给x的父节点赋值
+                        // 7.dir<=0则向p左边查找,否则向p右边查找,如果为null,则代表该位置即为x的目标位置
                         if ((p = (dir <= 0) ? p.left : p.right) == null)
                         {
                             x.parent = xp;
@@ -2136,12 +2173,14 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                                 xp.left = x;
                             else
                                 xp.right = x;
+                            // 9.进行红黑树的插入平衡(通过左旋、右旋和改变节点颜色来保证当前树符合红黑树的要求)
                             root = balanceInsertion(root, x);
                             break;
                         }
                     }
                 }
             }
+            // 10.如果root节点不在table索引位置的头节点, 则将其调整为头节点
             moveRootToFront(tab, root);
         }
 
@@ -2149,34 +2188,41 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          * Returns a list of non-TreeNodes replacing those linked from
          * this node.
          */
+// * 将红黑树节点转为链表节点, 当节点<=6个时会被触发
         final Node<K, V> untreeify(java.util.HashMap<K, V> map)
         {
-            Node<K, V> hd = null, tl = null;
+            Node<K, V> hd = null, tl = null;// hd指向头节点, tl指向尾节点
             for (Node<K, V> q = this; q != null; q = q.next)
             {
+                // 2.调用replacementNode方法构建链表节点
                 Node<K, V> p = map.replacementNode(q, null);
+                // 3.如果tl为null, 则代表当前节点为第一个节点, 将hd赋值为该节点
                 if (tl == null)
                     hd = p;
                 else
                     tl.next = p;
-                tl = p;
+                tl = p; // 5.每次都将tl节点指向当前节点, 即尾节点
             }
-            return hd;
+            return hd;// 6.返回转换后的链表的头节点
         }
 
         /**
          * Tree version of putVal.
          */
+        //红黑树的put操作，红黑树插入会同时维护原来的链表属性, 即原来的next属性
         final TreeNode<K, V> putTreeVal(java.util.HashMap<K, V> map, Node<K, V>[] tab,
-                                                          int h, K k, V v)
+                                        int h, K k, V v)
         {
             Class<?> kc = null;
             boolean searched = false;
+            // 1.查找根节点, 索引位置的头节点并不一定为红黑树的根节点
             TreeNode<K, V> root = (parent != null) ? root() : this;
+            // 2.将根节点赋值给p节点，开始进行查找
             for (TreeNode<K, V> p = root; ; )
             {
                 int dir, ph;
                 K pk;
+                // 3.如果传入的hash值小于p节点的hash值，将dir赋值为-1，代表向p的左边查找树
                 if ((ph = p.hash) > h)
                     dir = -1;
                 else if (ph < h)
@@ -2187,6 +2233,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                         (kc = comparableClassFor(k)) == null) ||
                         (dir = compareComparables(kc, k, pk)) == 0)
                 {
+                    // 6.1 第一次符合条件, 从p节点的左节点和右节点分别调用find方法进行查找, 如果查找到目标节点则返回
                     if (!searched)
                     {
                         TreeNode<K, V> q, ch;
@@ -2197,10 +2244,13 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                                         (q = ch.find(h, k, kc)) != null))
                             return q;
                     }
+                    // 6.2 否则使用定义的一套规则来比较k和p节点的key的大小, 用来决定向左还是向右查找
                     dir = tieBreakOrder(k, pk);
                 }
 
-                TreeNode<K, V> xp = p;
+                TreeNode<K, V> xp = p;// xp赋值为x的父节点,中间变量,用于下面给x的父节点赋值
+
+                // 7.dir<=0则向p左边查找,否则向p右边查找,如果为null,则代表该位置即为x的目标位置
                 if ((p = (dir <= 0) ? p.left : p.right) == null)
                 {
                     Node<K, V> xpn = xp.next;
@@ -2229,6 +2279,8 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          * the bin is converted back to a plain bin. (The test triggers
          * somewhere between 2 and 6 nodes, depending on tree structure).
          */
+        //比普通的红黑树删除节点还要混乱
+//        目的就是移除调用此方法的节点，也就是该方法中的 this 节点。移除包括链表的处理和红黑树的处理。
         final void removeTreeNode(java.util.HashMap<K, V> map, Node<K, V>[] tab,
                                   boolean movable)
         {
@@ -2348,6 +2400,8 @@ public class HashMap<K, V> extends AbstractMap<K, V>
          * @param index the index of the table being split
          * @param bit   the bit of hash to split on
          */
+        //扩容后，红黑树的hash分布，只可能存在于两个位置：原索引位置、原索引位置+oldCap
+        //仅仅resize后被调用
         final void split(java.util.HashMap<K, V> map, Node<K, V>[] tab, int index, int bit)
         {
             TreeNode<K, V> b = this;
@@ -2407,7 +2461,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         // Red-black tree methods, all adapted from CLR
 
         static <K, V> TreeNode<K, V> rotateLeft(TreeNode<K, V> root,
-                                                                  TreeNode<K, V> p)
+                                                TreeNode<K, V> p)
         {
             TreeNode<K, V> r, pp, rl;
             if (p != null && (r = p.right) != null)
@@ -2427,7 +2481,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         }
 
         static <K, V> TreeNode<K, V> rotateRight(TreeNode<K, V> root,
-                                                                   TreeNode<K, V> p)
+                                                 TreeNode<K, V> p)
         {
             TreeNode<K, V> l, pp, lr;
             if (p != null && (l = p.left) != null)
@@ -2447,7 +2501,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         }
 
         static <K, V> TreeNode<K, V> balanceInsertion(TreeNode<K, V> root,
-                                                                        TreeNode<K, V> x)
+                                                      TreeNode<K, V> x)
         {
             x.red = true;
             for (TreeNode<K, V> xp, xpp, xppl, xppr; ; )
@@ -2516,8 +2570,9 @@ public class HashMap<K, V> extends AbstractMap<K, V>
             }
         }
 
+        //在进行插入和删除时有可能会触发红黑树的插入平衡调整（balanceInsertion 方法）或删除平衡调整（balanceDeletion 方法）
         static <K, V> TreeNode<K, V> balanceDeletion(TreeNode<K, V> root,
-                                                                       TreeNode<K, V> x)
+                                                     TreeNode<K, V> x)
         {
             for (TreeNode<K, V> xp, xpl, xpr; ; )
             {
