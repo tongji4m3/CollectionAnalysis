@@ -45,6 +45,31 @@ Serializable:实现了序列化，即可以将HashMap对象保存至本地，之
     (将 hashCode 的高 16 位与 hashCode 进行异或运算，主要是为了在 table 的 length 较小的时候，让高位也参与运算
     3. 将计算出来的 hash 值与 (table.length - 1) 进行 & 运算
     (因为x mod 2^n = x & (2^n - 1),而底层数组长度总是 2 的 n 次方,所以x mod table.length = x & (table.length - 1)
+
+扩容后节点重 hash 只可能出现在“原索引位置” 与 “原索引 + oldCap 位置”:
+    如16->32
+    即hash & 1111 变成 hash & 11111
+    可以看到只有最高位可能会改变,即分成 0xxxx 或者 1xxxx,即要不在原索引位置,要不在原索引 + oldCap 位置
+
+jdk1.7死循环:
+    导致死循环的主要原因是扩容后，节点的顺序会反掉,即采用头插法造成的
+
+HashMap 和 Hashtable 的区别
+    HashMap 允许 key 和 value 为 null，Hashtable 不允许。
+    HashMap 的默认初始容量为 16，Hashtable 为 11。
+    HashMap 的扩容为原来的 2 倍，Hashtable 的扩容为原来的 2 倍加 1。
+    HashMap 是非线程安全的，Hashtable是线程安全的。
+    HashMap 的 hash 值重新计算过，Hashtable 直接使用 hashCode。
+    HashMap 去掉了 Hashtable 中的 contains 方法。
+    HashMap 继承自 AbstractMap 类，Hashtable 继承自 Dictionary 类。
+
+HashMap 有 threshold 属性和 loadFactor 属性，但是没有 capacity 属性。
+初始化时，如果传了初始化容量值，该值是存在 threshold 变量，并且 Node 数组是在第一次 put 时才会进行初始化，
+初始化时会将此时的 threshold 值作为新表的 capacity 值，然后用 capacity 和 loadFactor 计算新表的真正 threshold 值。
+
+当同一个索引位置的节点在增加后达到8个时，并且此时数组的长度大于等于 64，
+则会触发链表节点（Node）转红黑树节点（TreeNode），转成红黑树节点后，其实链表的结构还存在，通过 next 属性维持。
+链表节点转红黑树节点的具体方法为源码中的 treeifyBin 方法。而如果数组长度小于64，则不会触发链表转红黑树，而是会进行扩容。
 */
 public class HashMap<K, V> extends AbstractMap<K, V>
         implements Map<K, V>, Cloneable, Serializable {
@@ -607,12 +632,12 @@ public class HashMap<K, V> extends AbstractMap<K, V>
         int oldThr = threshold;
         int newCap, newThr = 0;
 
-        //变成原来的两倍
+        //扩容前的table不为空,即正常的扩容操作.将容量变成原来的两倍
         if (oldCap > 0)
         {
             if (oldCap >= MAXIMUM_CAPACITY)
             {
-                //阈值设为最大,但是不扩容了
+                //阈值设为最大,但是不扩容
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
@@ -622,7 +647,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
             //容量和阈值都*2扩容
         }
         //如果老表的容量为0, 老表的阈值大于0, 是因为初始容量被放入阈值，则将新表的容量设置为老表的阈值
-        //对应前两种初始化方法
+        //对应前两种初始化HashMap的方法 例如new HashMap<>(32)
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
         else
@@ -676,6 +701,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                             将原本在一个索引的分成两条链表
                              */
                             //因为扩容为原来两倍,所以根据oldCap的最高位,来把链表区分成两块链表
+                            //如果 e 的 hash 值与老表的容量进行位与运算为 0，则说明 e 节点扩容后的索引位置跟老表的索引位置一样
                             if ((e.hash & oldCap) == 0)
                             {
                                 //好强的代码,巧妙的构造了链表
@@ -2396,6 +2422,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
             {
                 next = (TreeNode<K, V>) e.next;
                 e.next = null;
+                // 如果e的hash值与老表的容量进行与运算为0,则扩容后的索引位置跟老表的索引位置一样
                 if ((e.hash & bit) == 0)
                 {
                     if ((e.prev = loTail) == null)
@@ -2412,28 +2439,36 @@ public class HashMap<K, V> extends AbstractMap<K, V>
                     else
                         hiTail.next = e;
                     hiTail = e;
-                    ++hc;
+                    ++hc;// 统计原索引位置的节点个数
                 }
             }
 
+            // 如果原索引位置的节点不为空
             if (loHead != null)
             {
+                //如果节点个数<=6个则将红黑树转为链表结构
                 if (lc <= UNTREEIFY_THRESHOLD)
                     tab[index] = loHead.untreeify(map);
                 else
                 {
                     tab[index] = loHead;
+                    //如果hiHead不为空，则代表原来的红黑树(老表的红黑树由于节点被分到两个位置)已经被改变, 需要重新构建新的红黑树
                     if (hiHead != null) // (else is already treeified)
+                        //以 loHead 为根节点，构建新的红黑树
                         loHead.treeify(tab);
                 }
             }
+            //如果索引位置为原索引+oldCap的节点不为空
             if (hiHead != null)
             {
+                //如果节点个数<=6个则将红黑树转为链表结构
                 if (hc <= UNTREEIFY_THRESHOLD)
                     tab[index + bit] = hiHead.untreeify(map);
                 else
                 {
+                    //将索引位置为原索引+oldCap的节点设置为对应的头节点
                     tab[index + bit] = hiHead;
+                    //loHead不为空则代表原来的红黑树(老表的红黑树由于节点被分到两个位置)已经被改变, 需要重新构建新的红黑树
                     if (loHead != null)
                         hiHead.treeify(tab);
                 }
