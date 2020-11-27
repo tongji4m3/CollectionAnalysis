@@ -5,23 +5,7 @@ import java.io.InvalidObjectException;
 import java.io.Serializable;
 import java.util.*;
 
-    /*
-    允许key和value为null
-    unsynchronized非线程安全的
-    不保证元素存储的顺序
 
-    在将元素适当地分散在存储桶中,可以保证get,put基本操作为O(1)
-    速度与capacity(桶的数量),size(key-value的值)成比例
-    所以initial capacity不应太高,load factor(负载因子)不应太低
-    load factor默认为0.75.定义了hash表中在扩容前能装多少.超过则扩容成两倍
-
-    如果要存很多键,最好一开始就给大容量
-
-    不是线程安全的,多线程如果要进行添加删除操作,则要加synchronized
-    Collections.synchronizedMap(new HashMap(...));也可以实现
-
-    迭代器的快速失败机制:在迭代器中修改了结构,则throw ConcurrentModificationException
-     */
 public class HashMap<K, V>
         extends AbstractMap<K, V>
         implements Map<K, V>, Cloneable, Serializable
