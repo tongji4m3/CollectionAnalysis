@@ -13,10 +13,20 @@ import java.util.function.Consumer;
  * fail-fast的迭代器,抛出 ConcurrentModificationException
  */
 /*
-AbstractSequentialList 只支持按次序访问
+
+AbstractSequentialList 只支持按次序访问,提供了一套基于顺序访问的接口。
+通过继承此类，子类仅需实现部分代码即可拥有完整的一套访问某种序列表（比如链表）的接口
 需要实现的方法：
-size()
-listIterator()，返回一个 ListIterator
+public abstract ListIterator<E> listIterator(int index);
+对于随机访问集合类一般建议继承 AbstractList 而不是 AbstractSequentialList。
+
+实现了 Deque (double ended queue)，Deque 又继承自 Queue 接口。这样 LinkedList 就具备了队列的功能。
+
+实现栈等
+
+LinkedList 存储元素的节点需要额外的空间存储前驱和后继的引用
+LinkedList 在链表头部和尾部插入效率比较高，但在指定位置进行插入时，效率一般。
+LinkedList 是非线程安全的集合类，并发环境下，多个线程同时操作 LinkedList，会引发不可预知的错误。
  */
 public class LinkedList<E>
         extends AbstractSequentialList<E>
@@ -59,6 +69,14 @@ public class LinkedList<E>
 
     /**
      * Links e as first element.
+     */
+    //在链表首部加一个元素
+    //基本实现都是比较套路的,最好记下来,自己写时也比较好实现:
+    /*
+    用一个引用f指向(old)first
+    新增一个节点,并且指向f(此时就算f为null也无所谓,只是指向了个null而已)
+    更新first到新的引用上
+    此时要判断f(oldFirst)是否为null,为null说明插入的是第一个元素,直接让last=first(new),不为null则更新引用
      */
     private void linkFirst(E e) {
         final Node<E> f = first;
@@ -106,6 +124,7 @@ public class LinkedList<E>
     /**
      * Unlinks non-null first node f.
      */
+    //会保证传入的f都是first
     private E unlinkFirst(Node<E> f) {
         // assert f == first && f != null;
         final E element = f.item;
@@ -272,24 +291,15 @@ public class LinkedList<E>
      * @param e element to be appended to this list
      * @return {@code true} (as specified by {@link Collection#add})
      */
+    //在尾部添加一个元素
     public boolean add(E e) {
         linkLast(e);
         return true;
     }
 
-    /**
-     * Removes the first occurrence of the specified element from this list,
-     * if it is present.  If this list does not contain the element, it is
-     * unchanged.  More formally, removes the element with the lowest index
-     * {@code i} such that
-     * <tt>(o==null&nbsp;?&nbsp;get(i)==null&nbsp;:&nbsp;o.equals(get(i)))</tt>
-     * (if such an element exists).  Returns {@code true} if this list
-     * contained the specified element (or equivalently, if this list
-     * changed as a result of the call).
-     *
-     * @param o element to be removed from this list, if present
-     * @return {@code true} if this list contained the specified element
-     */
+    //删除根据对象是否为null来进行删除操作
+    //调用equals来进行对比
+    //只会删除遇到的第一个元素
     public boolean remove(Object o) {
         if (o == null) {
             for (Node<E> x = first; x != null; x = x.next) {
@@ -321,6 +331,8 @@ public class LinkedList<E>
      * @return {@code true} if this list changed as a result of the call
      * @throws NullPointerException if the specified collection is null
      */
+    //在尾部添加
+    // size表明追加到链表的最后
     public boolean addAll(Collection<? extends E> c) {
         return addAll(size, c);
     }
@@ -340,19 +352,30 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @throws NullPointerException if the specified collection is null
      */
+    /*
+    假设开始有0,1,2   size=3
+    addAll(3,Arrays.asList(5, 6, 7)),则变成 0,1,2,5,6,7
+    addAll(1,Arrays.asList(5, 6, 7)),则变成 0,5,6,7,1,2
+    即0,1,2 在1处插入,则pred=node(0),succ=node(1),会在pred与succ直接构建那几个链表节点
+     */
     public boolean addAll(int index, Collection<? extends E> c) {
+        //index >= 0 && index <= size
         checkPositionIndex(index);
 
+        //转换为了数组
         Object[] a = c.toArray();
         int numNew = a.length;
+        // 集合为空
         if (numNew == 0)
             return false;
 
         Node<E> pred, succ;
+        //size直接代表在尾部添加
         if (index == size) {
             succ = null;
             pred = last;
         } else {
+            //当前节点为传入的位置对应的节点
             succ = node(index);
             pred = succ.prev;
         }
@@ -367,6 +390,7 @@ public class LinkedList<E>
             pred = newNode;
         }
 
+        //说明是插入size位置的情况
         if (succ == null) {
             last = pred;
         } else {
@@ -388,6 +412,7 @@ public class LinkedList<E>
         // - helps a generational GC if the discarded nodes inhabit
         //   more than one generation
         // - is sure to free memory even if there is a reachable Iterator
+        //注意链接也要全部搞干净
         for (Node<E> x = first; x != null; ) {
             Node<E> next = x.next;
             x.item = null;
@@ -397,6 +422,7 @@ public class LinkedList<E>
         }
         first = last = null;
         size = 0;
+        //modCount居然没清空
         modCount++;
     }
 
@@ -411,6 +437,8 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     public E get(int index) {
+        //首先要检查是否index合法
+        //然后根据从左边或者右边找节点
         checkElementIndex(index);
         return node(index).item;
     }
@@ -501,6 +529,8 @@ public class LinkedList<E>
     /**
      * Returns the (non-null) Node at the specified element index.
      */
+    //根据索引找节点,而且根据index与size/2的大小决定从哪里开始找
+    //也是从0开始的
     Node<E> node(int index) {
         // assert isElementIndex(index);
 
@@ -530,6 +560,7 @@ public class LinkedList<E>
      * @return the index of the first occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
+    //从头开始找该对象,而且索引从0开始,找不到则返回-1
     public int indexOf(Object o) {
         int index = 0;
         if (o == null) {
@@ -559,6 +590,7 @@ public class LinkedList<E>
      * @return the index of the last occurrence of the specified element in
      *         this list, or -1 if this list does not contain the element
      */
+    //从尾部开始找链表的索引,last处索引为size-1
     public int lastIndexOf(Object o) {
         int index = size;
         if (o == null) {
@@ -801,11 +833,17 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      * @see List#listIterator(int)
      */
+    //必须重写的方法
+    //index为从哪个位置开始迭代
     public ListIterator<E> listIterator(int index) {
         checkPositionIndex(index);
         return new ListItr(index);
     }
 
+    /*
+    一样的套路,开始next指向第一个访问的位置
+    调用一次next时,返回当前的next,并且让next指向下一个访问位置
+     */
     private class ListItr implements ListIterator<E> {
         private Node<E> lastReturned;
         private Node<E> next;
@@ -955,6 +993,7 @@ public class LinkedList<E>
      *
      * @return a shallow copy of this {@code LinkedList} instance
      */
+    //还是浅克隆,存储的元素并没有克隆一遍
     public Object clone() {
         java.util.LinkedList<E> clone = superClone();
 
@@ -991,47 +1030,15 @@ public class LinkedList<E>
             result[i++] = x.item;
         return result;
     }
-
-    /**
-     * Returns an array containing all of the elements in this list in
-     * proper sequence (from first to last element); the runtime type of
-     * the returned array is that of the specified array.  If the list fits
-     * in the specified array, it is returned therein.  Otherwise, a new
-     * array is allocated with the runtime type of the specified array and
-     * the size of this list.
-     *
-     * <p>If the list fits in the specified array with room to spare (i.e.,
-     * the array has more elements than the list), the element in the array
-     * immediately following the end of the list is set to {@code null}.
-     * (This is useful in determining the length of the list <i>only</i> if
-     * the caller knows that the list does not contain any null elements.)
-     *
-     * <p>Like the {@link #toArray()} method, this method acts as bridge between
-     * array-based and collection-based APIs.  Further, this method allows
-     * precise control over the runtime type of the output array, and may,
-     * under certain circumstances, be used to save allocation costs.
-     *
-     * <p>Suppose {@code x} is a list known to contain only strings.
-     * The following code can be used to dump the list into a newly
-     * allocated array of {@code String}:
-     *
-     * <pre>
-     *     String[] y = x.toArray(new String[0]);</pre>
-     *
-     * Note that {@code toArray(new Object[0])} is identical in function to
-     * {@code toArray()}.
-     *
-     * @param a the array into which the elements of the list are to
-     *          be stored, if it is big enough; otherwise, a new array of the
-     *          same runtime type is allocated for this purpose.
-     * @return an array containing the elements of the list
-     * @throws ArrayStoreException if the runtime type of the specified array
-     *         is not a supertype of the runtime type of every element in
-     *         this list
-     * @throws NullPointerException if the specified array is null
-     */
+    //String[] y = x.toArray(new String[0]);
+    //本质就是用传入的a的类型来接收链表node节点
+    //a的length不重要,因为总能处理掉
+    //但是如果传入过大的a,则a的后面元素全部为null
+    //例如:Integer[] integers = linkedList.toArray(new Integer[5]); 链表中原本只有3,2,1
+    //结果就是;[3, 2, 1, null, null]
     @SuppressWarnings("unchecked")
     public <T> T[] toArray(T[] a) {
+
         if (a.length < size)
             a = (T[])java.lang.reflect.Array.newInstance(
                     a.getClass().getComponentType(), size);
