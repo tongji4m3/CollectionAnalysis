@@ -24,6 +24,7 @@ public class HashSet<E>
     static final long serialVersionUID = -5024744406713321676L;
 
     // 底层使用HashMap来保存HashSet中所有元素。
+    //LinkedHashMap也是HashMap
     private transient HashMap<E,Object> map;
 
     // Dummy value to associate with an Object in the backing Map
@@ -86,6 +87,8 @@ public class HashSet<E>
      * @param loadFactor 加载因子。
      * @param dummy 标记。
      */
+    //用dummy来标记此时使用的是LinkedHashMap
+    //而且是包访问权限的,意味着只使用HashMap并不能使用到LinkedHashMap
     HashSet(int initialCapacity, float loadFactor, boolean dummy) {
         map = new LinkedHashMap<>(initialCapacity, loadFactor);
     }
