@@ -14,7 +14,7 @@ import sun.misc.SharedSecrets;
 /*
 非线程安全
 允许null值
-添加值得时候会先获取对象的hashCode方法，如果hashCode方法返回的值一致，则再调用equals方法判断是否一致，如果不一致才add元素。
+添加值时,如果hashCode方法返回的值一致，则再调用equals方法判断是否一致，如果不一致才add元素
 和HashMap继承得差不多
  */
 public class HashSet<E>
