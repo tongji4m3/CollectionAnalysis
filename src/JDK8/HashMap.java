@@ -678,7 +678,7 @@ public class HashMap<K, V> extends AbstractMap<K, V>
             for (int j = 0; j < oldCap; ++j)
             {
                 Node<K, V> e;
-                if ((e = oldTab[j]) != null)// 将索引值为j的老表头节点赋值给e
+                    if ((e = oldTab[j]) != null)// 将索引值为j的老表头节点赋值给e
                 {
                     oldTab[j] = null;// 将老表的节点设置为空, 以便垃圾收集器回收空间
                     if (e.next == null)//只有一个节点,直接散列

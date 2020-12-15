@@ -6,6 +6,45 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 
 /**
+ * 对首部的操作:
+ * getFirst()
+ * removeFirst()
+ * addFirst(E e)
+ * peek()//获取首部元素
+ * peekFirst()
+ * element()
+ * poll() //获取并删除首部元素
+ * pollFirst()
+ * remove()
+ * offerFirst(E e)
+ * push(E e)//调用addFirst(e);
+ * pop() //调用removeFirst();
+ *
+ * 对尾部的操作:
+ * getLast()
+ * removeLast()
+ * addLast(E e)
+ * add(E e) //调用linkLast(e);
+ * offer(E e)//调用add(e);
+ * addAll(Collection<? extends E> c)  //return addAll(size, c); 在尾部添加
+ * offerLast(E e)
+ * peekLast()
+ * pollLast()
+ *
+ * 索引操作
+ * addAll(int index, Collection<? extends E> c)
+ * add(int index, E element)
+ *
+ *
+ *      都是往index对应的node节点前面进行添加,而如果index==size,就会往最后添加
+ *     假设开始有0,1,2   size=3
+ *     addAll(3,Arrays.asList(5, 6, 7)),则变成 0,1,2,5,6,7
+ *     addAll(1,Arrays.asList(5, 6, 7)),则变成 0,5,6,7,1,2
+ *     即0,1,2 在1处插入,则pred=node(0),succ=node(1),会在pred与succ直接构建那几个链表节点
+ *
+ */
+
+/**
  * 双向链表
  * 允许null值
  * 如果找索引,则先判断从头找快还是从尾找快
