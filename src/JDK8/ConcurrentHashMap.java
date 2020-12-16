@@ -646,6 +646,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
      */
+    //避免hash值是负数
+    //HASH_BITS的符号位是0，& 下来的最高位肯定是0
     static final int spread(int h) {
         return (h ^ (h >>> 16)) & HASH_BITS;
     }
@@ -742,20 +744,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      */
     private transient volatile Node<K,V>[] nextTable;
 
-    /**
-     * Base counter value, used mainly when there is no contention,
-     * but also as a fallback during table initialization
-     * races. Updated via CAS.
-     */
+//    记录容器的容量大小，通过CAS更新
     private transient volatile long baseCount;
 
     /**
-     * Table initialization and resizing control.  When negative, the
-     * table is being initialized or resized: -1 for initialization,
-     * else -(1 + the number of active resizing threads).  Otherwise,
-     * when table is null, holds the initial table size to use upon
-     * creation, or 0 for default. After initialization, holds the
-     * next element count value upon which to resize the table.
+     * 这个sizeCtl是volatile的，那么他是线程可见的
+     * 当sizeCtl小于0说明有多个线程正则等待扩容结果，参考transfer函数
+     * sizeCtl等于0是默认值，大于0是扩容的阀值
      */
     private transient volatile int sizeCtl;
 
@@ -765,7 +760,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     private transient volatile int transferIndex;
 
     /**
-     * Spinlock (locked via CAS) used when resizing and/or creating CounterCells.
+     * 自旋锁 （锁定通过 CAS） 在调整大小和/或创建 CounterCells 时使用。
+     * 在CounterCell类更新value中会使用，功能类似显示锁和内置锁，性能更好
      */
     private transient volatile int cellsBusy;
 
@@ -954,19 +950,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         return false;
     }
 
-    /**
-     * Maps the specified key to the specified value in this table.
-     * Neither the key nor the value can be null.
-     *
-     * <p>The value can be retrieved by calling the {@code get} method
-     * with a key that is equal to the original key.
-     *
-     * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
-     * @return the previous value associated with {@code key}, or
-     *         {@code null} if there was no mapping for {@code key}
-     * @throws NullPointerException if the specified key or value is null
-     */
+
     public V put(K key, V value) {
         return putVal(key, value, false);
     }
@@ -976,6 +960,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         if (key == null || value == null) throw new NullPointerException();
         int hash = spread(key.hashCode());
         int binCount = 0;
+
         for (Node<K,V>[] tab = table;;) {
             Node<K,V> f; int n, i, fh;
             if (tab == null || (n = tab.length) == 0)
